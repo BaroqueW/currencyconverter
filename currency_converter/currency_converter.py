@@ -9,6 +9,7 @@ from zipfile import ZipFile
 from io import BytesIO
 from decimal import Decimal
 from urllib.request import urlopen
+import ssl
 
 _DIRNAME = op.realpath(op.dirname(__file__))
 CURRENCY_FILE = op.join(_DIRNAME, "eurofxref-hist.zip")
@@ -98,6 +99,7 @@ class CurrencyConverter:
         na_values=frozenset(["", "N/A"]),
         decimal=False,
         verbose=False,
+        verify=True,
     ):
         """Instantiate a CurrencyConverter.
 
@@ -141,12 +143,18 @@ class CurrencyConverter:
         self.currencies = None
 
         if currency_file is not None:
-            self.load_file(currency_file)
+            self.load_file(currency_file, verify)
 
-    def load_file(self, currency_file):
+    def load_file(self, currency_file, verify):
         """To be subclassed if alternate methods of loading data."""
         if currency_file.startswith(("http://", "https://")):
-            content = urlopen(currency_file).read()
+            if verify is False:
+                ctx = ssl.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                content = urlopen(currency_file, context=ctx).read()
+            else:
+                content = urlopen(currency_file).read()
         else:
             with open(currency_file, "rb") as f:
                 content = f.read()
